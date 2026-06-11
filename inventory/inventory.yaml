@@ -1,0 +1,5 @@
+host: 10.64.14.252
+login: sysadmin
+password: Li69nux*1234
+namespace: default
+kubeconfig: /etc/kubernetes/admin.conf
