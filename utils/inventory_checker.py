@@ -48,7 +48,7 @@ from utils.ssh_connection import SSHConnection, HostKeyPolicy
 
 logger = logging.getLogger(__name__)
 
-_REQUIRED_KEYS = ("host", "login", "password", "namespace", "kubeconfig")
+_REQUIRED_KEYS = ("host", "login", "password", "namespace", "kubeconfig", "image")
 
 # Same pattern used in K8sChecker — validated once here at load time.
 _KUBECONFIG_PATTERN = re.compile(r'^(/[\w.\-]+)+$')
@@ -103,6 +103,7 @@ class InventoryConfig:
     password: str
     namespace: str
     kubeconfig: str
+    image: str
 
 
 class InventoryChecker:
@@ -278,6 +279,7 @@ class InventoryChecker:
             password=data["password"],
             namespace=data["namespace"],
             kubeconfig=data["kubeconfig"],
+            image=data["image"],
         )
         logger.info("Inventory validation passed for host '%s'.", config.host)
         return config
