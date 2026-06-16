@@ -43,6 +43,7 @@ import redfish
 from redfish.rest.v1 import InvalidCredentialsError
 
 from utils.tool_result import ToolResult, ResultStatus
+from tools.rvmc.base import RvmcBaseTool
 from tools.rvmc.bmc_target import BmcTarget
 from tools.rvmc.rvmc_errors import (
     RvmcError,
@@ -127,21 +128,29 @@ def _supported_device(devices: list) -> bool:
 # VmcObject
 ###############################################################################
 
-class VmcObject:
+class VmcObject(RvmcBaseTool):
     """
     Virtual Media Controller — one instance per BMC target.
 
-    Implements the context manager protocol so the Redfish session is always
-    closed regardless of success or failure.
+    Implements the full 12-step Redfish ISO injection pipeline and the
+    context manager protocol so the Redfish session is always closed
+    regardless of success or failure.
 
     Usage:
         with VmcObject(target) as vmc:
             vmc.execute()
     """
 
+    name: str = "rvmc"
+    description: str = (
+        "Injects a bootable ISO into a BMC virtual CD/DVD drive via Redfish "
+        "and power-cycles the host to trigger a network-based OS installation."
+    )
+
     def __init__(self, target: BmcTarget):
+        super().__init__(target)
         self._debug = target.debug
-        self.target = target.target_name
+        self.target_name = target.target_name
         self.ip = target.address.strip()
         self.un = target.username.strip()
         self.pw = target.password
@@ -189,7 +198,7 @@ class VmcObject:
         self.reset_action_dict    = {}
 
         self._ilog("%s v%d.%d" % (FEATURE_NAME, VERSION_MAJOR, VERSION_MINOR))
-        self._dlog1("Target : %s" % self.target)
+        self._dlog1("Target : %s" % self.target_name)
         self._dlog1("BMC IP : %s" % self.ip)
 
     # ------------------------------------------------------------------
@@ -694,8 +703,7 @@ def run_rvmc(target: BmcTarget) -> ToolResult:
         return ToolResult(
             status=ResultStatus.SUCCESS,
             exit_code=0,
-            stdout="ISO injection complete for %s" % (target.target_name or target.address),
-            duration_seconds=_time.time() - start,
+            stdout="ISO injection complete for %s" % (target.target_name or target.address),            duration_seconds=_time.time() - start,
             data={"target": target.target_name, "address": target.address,
                   "image": target.image},
         )

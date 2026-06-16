@@ -49,6 +49,13 @@ class GetEventsTool(KubernetesTool):
     to determine remediation priority without querying individual pod logs.
     """
 
+    name: str = "get_events"
+    description: str = "Returns cluster events, warning events, network, storage, and RBAC state."
+
+    def execute(self, correlation_id: str | None = None) -> ToolResult:
+        """Return warning events as the primary triage signal."""
+        return self.get_warning_events(correlation_id=correlation_id)
+
     # ------------------------------------------------------------------
     # Events
     # ------------------------------------------------------------------

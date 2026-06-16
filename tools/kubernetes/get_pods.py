@@ -42,6 +42,13 @@ class GetPodsTool(KubernetesTool):
     "--all-namespaces" to query across all namespaces.
     """
 
+    name: str = "get_pods"
+    description: str = "Returns pod status, resource usage, deployments, and workload health."
+
+    def execute(self, correlation_id: str | None = None) -> ToolResult:
+        """Run the default pod listing and return results."""
+        return self.get_pods(correlation_id=correlation_id)
+
     def get_pods(
         self,
         namespace: str | None = None,

@@ -30,35 +30,42 @@ def _mock_conn():
 
 class TestKubernetesToolInit:
     def test_valid_construction(self, inventory):
-        from tools.kubernetes.base import KubernetesTool
+        from tools.kubernetes.get_nodes import GetNodesTool
         conn = _mock_conn()
-        tool = KubernetesTool(conn, namespace=inventory.namespace,
-                              kubeconfig=inventory.kubeconfig)
+        tool = GetNodesTool(conn, namespace=inventory.namespace,
+                            kubeconfig=inventory.kubeconfig)
         assert tool.namespace == inventory.namespace
         assert "KUBECONFIG=%s" % inventory.kubeconfig in tool._env_prefix
 
     def test_no_kubeconfig_no_prefix(self):
-        from tools.kubernetes.base import KubernetesTool
+        from tools.kubernetes.get_nodes import GetNodesTool
         conn = _mock_conn()
-        tool = KubernetesTool(conn)
+        tool = GetNodesTool(conn)
         assert tool._env_prefix == ""
 
     def test_wrong_conn_type_raises(self):
         from tools.kubernetes.base import KubernetesTool
         with pytest.raises(TypeError, match="SSHConnection"):
-            KubernetesTool("not-a-conn")
+            # Use a concrete subclass to hit the isinstance check
+            from tools.kubernetes.get_nodes import GetNodesTool
+            GetNodesTool("not-a-conn")
 
     def test_invalid_kubeconfig_raises(self, inventory):
-        from tools.kubernetes.base import KubernetesTool
+        from tools.kubernetes.get_nodes import GetNodesTool
         conn = _mock_conn()
         with pytest.raises(ValueError, match="invalid characters"):
-            KubernetesTool(conn, kubeconfig=inventory.kubeconfig + "; rm -rf /")
+            GetNodesTool(conn, kubeconfig=inventory.kubeconfig + "; rm -rf /")
 
     def test_from_inventory(self, inventory):
-        from tools.kubernetes.base import KubernetesTool
+        from tools.kubernetes.get_nodes import GetNodesTool
         conn = _mock_conn()
-        tool = KubernetesTool.from_inventory(inventory, conn)
+        tool = GetNodesTool.from_inventory(inventory, conn)
         assert tool.namespace == inventory.namespace
+
+    def test_cannot_instantiate_abstract_base(self):
+        from tools.kubernetes.base import KubernetesTool
+        with pytest.raises(TypeError, match="abstract"):
+            KubernetesTool(_mock_conn())
 
 
 class TestNsFlag:

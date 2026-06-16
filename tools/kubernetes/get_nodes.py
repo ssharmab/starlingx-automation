@@ -39,6 +39,13 @@ class GetNodesTool(KubernetesTool):
     Every method returns a ToolResult.  Agents branch on result.status
     (ResultStatus enum) — never on string parsing.
     """
+    
+    name: str = "get_nodes"
+    description: str = "Returns node status, resource usage, component health, and cluster info."
+
+    def execute(self, correlation_id: str | None = None) -> ToolResult:
+        """Run the full node inspection suite and return aggregated results."""
+        return self.get_nodes(correlation_id)
 
     def get_nodes(self, correlation_id: str | None = None) -> ToolResult:
         """

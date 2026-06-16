@@ -40,7 +40,6 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from tools.kubernetes.base import KubernetesTool, load_inventory, _build_connection
 from utils.tool_result import ToolResult, ResultStatus
-
 logger = logging.getLogger(__name__)
 
 # RFC 1123 label: lowercase alphanumeric and hyphens, 1–253 chars.
@@ -94,6 +93,20 @@ class GetLogsTool(KubernetesTool):
       (from get_events.py) for triage and only call get_pod_logs() when
       the event stream points to a specific pod requiring deeper inspection.
     """
+
+    name: str = "get_logs"
+    description: str = "Retrieves pod logs by name, with optional container, time window, or tail limit."
+
+    def execute(self, correlation_id: str | None = None) -> ToolResult:
+        """
+        execute() is not meaningful for GetLogsTool without a pod name.
+        Agents must call get_pod_logs() directly with a validated pod name.
+        """
+        return ToolResult.error(
+            ResultStatus.FAILURE,
+            "GetLogsTool.execute() requires a pod name — call get_pod_logs() directly.",
+            correlation_id=correlation_id,
+        )
 
     def get_pod_logs(
         self,

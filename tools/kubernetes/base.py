@@ -2,22 +2,24 @@
 """
 base.py
 -------
-Shared base class for all Kubernetes SSH tools.
+Abstract base class for all Kubernetes SSH tools.
 
 LAYER: Tool
   Centralises the env_prefix construction, memcache noise filtering, and
   the _run() execution contract so each individual tool file contains only
   its own command logic and test harness.
 
-  Individual tools (get_nodes, get_pods, etc.) inherit from KubernetesTool
-  and call self._run("kubectl ...") exclusively.  They never access
-  conn._client directly and never construct commands from external input.
+  Individual tools (get_nodes, get_pods, etc.) inherit from KubernetesTool,
+  declare name/description, and implement execute().  They call
+  self._run("kubectl ...") exclusively.  They never access conn._client
+  directly and never construct commands from external input.
 """
 
 from __future__ import annotations
 
 import logging
 import re
+from abc import ABC, abstractmethod
 from pathlib import Path
 
 from utils.inventory_checker import InventoryChecker, InventoryConfig, InventoryError
@@ -84,19 +86,22 @@ def load_inventory(inventory_path: Path | None = None) -> InventoryConfig:
     return InventoryChecker(path=path).validate()
 
 
-class KubernetesTool:
+class KubernetesTool(ABC):
     """
-    Base class for all Kubernetes SSH tools.
+    Abstract base class for all Kubernetes SSH tools.
 
-    Subclasses call self._run("kubectl <subcommand>") and return the
-    resulting ToolResult directly.  No subclass may access self.conn._client,
-    construct commands from external input, or call print().
+    Every subclass MUST declare:
+        name        — machine-readable tool identifier
+        description — human/agent-readable summary of what the tool does
+        execute()   — the agent-facing entry point returning a ToolResult
 
-    Attributes:
-        conn (SSHConnection): Active SSH transport.
-        namespace (str):      Default Kubernetes namespace.
-        timeout (int):        Per-command execution timeout in seconds.
+    Subclasses call self._run("kubectl <subcommand>") internally.
+    No subclass may access self.conn._client directly, construct commands
+    from external input, or call print().
     """
+
+    name: str = ""
+    description: str = ""
 
     def __init__(
         self,
@@ -108,6 +113,8 @@ class KubernetesTool:
         """
         Args:
             conn:       An already-connected SSHConnection instance.
+                        The tool consumes the transport — it does not own
+                        credentials or manage connection lifecycle.
             namespace:  Default Kubernetes namespace for namespaced queries.
             kubeconfig: Absolute path to kubeconfig on the remote host.
                         Validated against ^(/[\\w.\\-]+)+$ to prevent injection.
@@ -141,6 +148,16 @@ class KubernetesTool:
             namespace=config.namespace,
             kubeconfig=config.kubeconfig,
         )
+
+    @abstractmethod
+    def execute(self, correlation_id: str | None = None) -> ToolResult:
+        """
+        Execute the tool and return a ToolResult.
+
+        Every subclass must implement this as the agent-facing entry point.
+        Agents invoke execute() and branch on result.status — they never
+        call individual query methods directly.
+        """
 
     def _ns_flag(self, namespace: str | None) -> str:
         """Return the kubectl namespace flag string."""
