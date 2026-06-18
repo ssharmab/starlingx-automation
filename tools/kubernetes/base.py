@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import logging
 import re
-from abc import ABC, abstractmethod
+from tools.base import BaseTool
 from pathlib import Path
 
 from utils.inventory_checker import InventoryChecker, InventoryConfig, InventoryError
@@ -86,7 +86,7 @@ def load_inventory(inventory_path: Path | None = None) -> InventoryConfig:
     return InventoryChecker(path=path).validate()
 
 
-class KubernetesTool(ABC):
+class KubernetesTool(BaseTool):
     """
     Abstract base class for all Kubernetes SSH tools.
 

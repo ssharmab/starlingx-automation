@@ -21,10 +21,11 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 
 from tools.rvmc.bmc_target import BmcTarget
-from utils.tool_result import ToolResult
+from common.tool_result import ToolResult
+from tools.base import BaseTool
 
 
-class RvmcBaseTool(ABC):
+class RvmcBaseTool(BaseTool):
     """
     Abstract base class for all Redfish Virtual Media Controller tools.
 
@@ -58,7 +59,7 @@ class RvmcBaseTool(ABC):
         self.target = target
 
     @abstractmethod
-    def execute(self) -> ToolResult:
+    def execute(self, correlation_id: str | None = None) -> ToolResult:
         """
         Execute the tool and return a ToolResult.
 
@@ -67,3 +68,4 @@ class RvmcBaseTool(ABC):
         all failures must be returned as ToolResult with an appropriate
         ResultStatus.
         """
+        pass

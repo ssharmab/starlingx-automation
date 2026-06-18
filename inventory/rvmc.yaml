@@ -1,10 +1,10 @@
 ---
-bmc_address: 10.66.22.233
+bmc_address: 10.66.22.234
 bmc_username: ADMIN
 #bmc_username: sysadmin
 #bmc_password: TGk2OW51eCo=
 #bmc_password: RlFKWElPWU9OUw==
-bmc_password: WU5ERkVJUExZVQ==
-#bmc_password: WkpVVUdDTU9XUA==
+#bmc_password: WU5ERkVJUExZVQ==
+bmc_password: WkpVVUdDTU9XUA==
 #bmc_password: VkRBRENJTEJaWg==
 image: http://10.66.19.163/26.03/wind-river-cloud-platform-host-installer-26.03.0.iso

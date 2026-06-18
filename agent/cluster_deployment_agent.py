@@ -1,13 +1,11 @@
 # SPDX-License-Identifier: Apache-2.0
 """
-cluster_health_agent.py
+cluster_deployment_agent.py
 -----------------
-Agent for cluster health monitoring.
+Agent for cluster deployment.
 
 Why this exists:
-- To monitor the health of the cluster.
-- To identify any issues with the cluster.
-- To alert the user about any issues with the cluster.
+- To deploy the cluster.
 """
 
 from typing import Any
@@ -17,9 +15,9 @@ from registry.tool_registry import ToolRegistry
 from common.tool_result import ToolResult
 from structs import *
 
-class ClusterHealthAgent :
+class ClusterDeploymentAgent :
     """
-    Agent for cluster health monitoring.
+    Agent for cluster deployment.
     """
 
     def __init__(self,
@@ -43,13 +41,19 @@ class ClusterHealthAgent :
         """
         raise NotImplementedError
 
+    def evaluate_goal(self) -> Any:
+        """
+        Evaluate the goal to identify issues.
+        """
+        raise NotImplementedError
+
     def decide(self) -> Decision:
         """
         Decide on actions to take based on the cluster health.
         """
         raise NotImplementedError
 
-    def act(self) -> ToolResult:
+    def act(self, decision: Decision) -> ToolResult:
         """
         Act on the cluster health.
         """

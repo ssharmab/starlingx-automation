@@ -1,6 +1,6 @@
-host: 10.66.22.233
-login: ADMIN
-password: YNDFEIPLYU
+host: 10.66.24.234
+login: sysadmin
+password: Li69nux*1234
 namespace: default
 kubeconfig: /etc/kubernetes/admin.conf
 image: http://10.66.19.163/26.03/wind-river-cloud-platform-host-installer-26.03.0.iso

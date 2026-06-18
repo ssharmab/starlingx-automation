@@ -43,7 +43,7 @@ import redfish
 from redfish.rest.v1 import InvalidCredentialsError
 
 from utils.tool_result import ToolResult, ResultStatus
-from tools.rvmc.base import RvmcBaseTool
+from tools.base import BaseTool
 from tools.rvmc.bmc_target import BmcTarget
 from tools.rvmc.rvmc_errors import (
     RvmcError,
@@ -128,7 +128,7 @@ def _supported_device(devices: list) -> bool:
 # VmcObject
 ###############################################################################
 
-class VmcObject(RvmcBaseTool):
+class VmcObject(BaseTool):
     """
     Virtual Media Controller — one instance per BMC target.
 
@@ -148,7 +148,6 @@ class VmcObject(RvmcBaseTool):
     )
 
     def __init__(self, target: BmcTarget):
-        super().__init__(target)
         self._debug = target.debug
         self.target_name = target.target_name
         self.ip = target.address.strip()
@@ -363,6 +362,8 @@ class VmcObject(RvmcBaseTool):
             raise RvmcConnectionError("Unable to ping BMC at %s" % self.ip)
         self._ilog("BMC Ping OK: %s" % self.ip)
 
+        self._dlog1("Connecting to Redfish service at %s" % self.uri)
+        
         for attempt in range(1, MAX_CONNECTION_ATTEMPTS + 1):
             try:
                 self.redfish_obj = redfish.redfish_client(
