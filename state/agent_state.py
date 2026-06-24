@@ -1,42 +1,32 @@
 # SPDX-License-Identifier: Apache-2.0
 """
-agent_state.py
---------------
-Standard agent state object for agents.
-
-Why this exists:
-- The state of the agent and the goals need to be preserved.
-
+Runtime state for a single agent execution.
 """
+
 from dataclasses import dataclass, field
-from common.tool_result import ToolResult
-from goals.goal import Goal, GoalStatus
+
+from agent.structs.goal import GoalStatus
+from agent.structs.execution_record import ExecutionRecord
 
 
-
-@dataclass
+@dataclass(slots=True)
 class AgentState:
     """
-    Standard state object for agentic workflows.
+    Runtime state for an agent.
 
-    Attributes:
-        goals: List of goals to be achieved.
-        current_goal: The goal currently being worked on.
-        completed_goals: List of goals that have been completed.
-        failed_goals: List of goals that have failed.
-        task_history: List of tasks that have been executed.
-        current_task: The task currently being executed.
-        task_results: Results of the tasks that have been executed.
+    Why this exists:
+
+    - Tracks overall goal progress.
+    - Preserves execution history.
+    - Tracks unanswered questions.
     """
-    goals : list[Goal] = field(default_factory=list)
-    observations: list[str] = field(default_factory=list)
-    conclusions: list[str] = field(default_factory=list)
-    decisions: list[str] = field(default_factory=list)
-    goal_status: dict[str, GoalStatus] = field(default_factory=dict)
-    task_history: list[str] = field(default_factory=list)
-    current_task: str | None = None
-    current_goal: Goal | None = None
-    ####### TODO: to maintain a history of tool results dict[str, list[ToolResult]] is better
-    task_results: dict[str, ToolResult] = field(default_factory=dict)
-    pending_questions: list[str] = field(default_factory=list)
-    ####### END TODO
+
+    goal_status: GoalStatus = GoalStatus.PENDING
+
+    execution_history: list[ExecutionRecord] = field(
+        default_factory=list
+    )
+
+    pending_questions: list[str] = field(
+        default_factory=list
+    )

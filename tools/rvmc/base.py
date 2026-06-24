@@ -22,6 +22,7 @@ from abc import ABC, abstractmethod
 
 from tools.rvmc.bmc_target import BmcTarget
 from common.tool_result import ToolResult
+from common.tool_request import ToolRequest
 from tools.base import BaseTool
 
 
@@ -38,9 +39,6 @@ class RvmcBaseTool(BaseTool):
     parameters.  The tool consumes the target — it does not own
     credentials or manage network topology.
     """
-
-    name: str = ""
-    description: str = ""
 
     def __init__(self, target: BmcTarget) -> None:
         """
@@ -59,9 +57,8 @@ class RvmcBaseTool(BaseTool):
         self.target = target
 
     @abstractmethod
-    def execute(self, correlation_id: str | None = None) -> ToolResult:
-        """
-        Execute the tool and return a ToolResult.
+    def execute(self, request: ToolRequest | None = None) -> ToolResult:
+        """Execute the tool and return a ToolResult.
 
         Agents invoke execute() and branch on result.status.
         This method must never call sys.exit() or raise uncaught exceptions —

@@ -6,6 +6,7 @@ In-memory registry of all known tools.
 """
 
 from tools.base import BaseTool
+from agent.structs.tool_definition import ToolDefinition
 
 class ToolRegistry:
     """
@@ -42,6 +43,11 @@ class ToolRegistry:
     def get_description(self, name: str) -> str:
         return self._tools[name].description
     
+    def tool_definitions(self) -> list[ToolDefinition]:
+        return [
+            tool.definition
+            for tool in self._tools.values()
+    ]
     # TODO: def unregister(self, name: str) -> None: to remove a tool from the registry. 
     # For now, we can assume that once a tool is registered, it will always be available,
     #  but in the future we may want to add a way to unregister tools that are no longer 

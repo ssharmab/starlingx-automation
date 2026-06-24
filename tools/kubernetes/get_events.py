@@ -52,7 +52,7 @@ class GetEventsTool(KubernetesTool):
     name: str = "get_events"
     description: str = "Returns cluster events, warning events, network, storage, and RBAC state."
 
-    def execute(self, correlation_id: str | None = None) -> ToolResult:
+    def execute(self, request: object | None = None) -> ToolResult:
         """Return warning events as the primary triage signal."""
         return self.get_warning_events(correlation_id=correlation_id)
 

@@ -1,77 +1,101 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Tests for utils/tool_result.py — full branch coverage."""
+"""Tests for common/tool_result.py — full branch coverage."""
 import pytest
-from utils.tool_result import ResultStatus, ToolResult
-
-
-class TestResultStatus:
-    def test_all_values(self):
-        assert ResultStatus.SUCCESS      == "success"
-        assert ResultStatus.FAILURE      == "failure"
-        assert ResultStatus.UNAVAILABLE  == "unavailable"
-        assert ResultStatus.TIMEOUT      == "timeout"
-        assert ResultStatus.AUTH_ERROR   == "auth_error"
-        assert ResultStatus.NOT_CONNECTED == "not_connected"
-
-    def test_is_str(self):
-        assert isinstance(ResultStatus.SUCCESS, str)
+from common.tool_result import ToolResult
 
 
 class TestToolResult:
-    def test_success_property_true(self):
-        r = ToolResult(status=ResultStatus.SUCCESS, exit_code=0)
-        assert r.success is True
-
-    def test_success_property_false(self):
-        r = ToolResult(status=ResultStatus.FAILURE, exit_code=1)
-        assert r.success is False
-
     def test_defaults(self):
-        r = ToolResult(status=ResultStatus.SUCCESS, exit_code=0)
+        """Test default values for ToolResult."""
+        r = ToolResult()
+        assert r.success is False
+        assert r.exit_code == 0
         assert r.stdout == ""
         assert r.stderr == ""
-        assert r.duration_seconds == 0.0
-        assert r.command == ""
         assert r.data == {}
-        assert r.correlation_id != ""
+        assert r.error_message == ""
+        assert r.timestamp == ""
+        assert r.metadata == {}
+        assert r.duration_seconds == 0.0
 
-    def test_to_dict_keys(self):
-        r = ToolResult(status=ResultStatus.SUCCESS, exit_code=0,
-                       stdout="out", stderr="err", duration_seconds=1.5,
-                       command="kubectl get pods", correlation_id="abc-123",
-                       data={"x": 1})
-        d = r.to_dict()
-        assert d["status"]           == "success"
-        assert d["success"]          is True
-        assert d["exit_code"]        == 0
-        assert d["stdout"]           == "out"
-        assert d["stderr"]           == "err"
-        assert d["duration_seconds"] == 1.5
-        assert d["command"]          == "kubectl get pods"
-        assert d["correlation_id"]   == "abc-123"
-        assert d["data"]             == {"x": 1}
+    def test_success_true(self):
+        """Test creating a successful ToolResult."""
+        r = ToolResult(success=True, exit_code=0)
+        assert r.success is True
 
-    def test_to_dict_rounds_duration(self):
-        r = ToolResult(status=ResultStatus.SUCCESS, exit_code=0,
-                       duration_seconds=1.23456789)
-        assert r.to_dict()["duration_seconds"] == 1.235
+    def test_success_false(self):
+        """Test creating a failed ToolResult."""
+        r = ToolResult(success=False, exit_code=1, error_message="Command failed")
+        assert r.success is False
+        assert r.exit_code == 1
+        assert r.error_message == "Command failed"
 
-    def test_error_factory_with_correlation_id(self):
-        r = ToolResult.error(ResultStatus.FAILURE, "bad thing",
-                             command="cmd", correlation_id="cid-1")
-        assert r.status           == ResultStatus.FAILURE
-        assert r.exit_code        == -1
-        assert r.stderr           == "bad thing"
-        assert r.command          == "cmd"
-        assert r.correlation_id   == "cid-1"
+    def test_with_stdout_stderr(self):
+        """Test ToolResult with standard output and error."""
+        r = ToolResult(
+            success=True,
+            exit_code=0,
+            stdout="output line 1\noutput line 2",
+            stderr=""
+        )
+        assert r.stdout == "output line 1\noutput line 2"
+        assert r.stderr == ""
 
-    def test_error_factory_generates_correlation_id(self):
-        r = ToolResult.error(ResultStatus.TIMEOUT, "timed out")
-        assert r.correlation_id != ""
-        assert len(r.correlation_id) > 0
+    def test_with_data(self):
+        """Test ToolResult with structured data."""
+        data = {"nodes": 3, "pods": 12, "services": 5}
+        r = ToolResult(success=True, exit_code=0, data=data)
+        assert r.data == data
 
-    def test_error_factory_all_statuses(self):
-        for status in ResultStatus:
-            r = ToolResult.error(status, "msg")
-            assert r.status == status
-            assert r.exit_code == -1
+    def test_with_metadata(self):
+        """Test ToolResult with metadata."""
+        metadata = {"namespace": "default", "cluster": "prod"}
+        r = ToolResult(success=True, exit_code=0, metadata=metadata)
+        assert r.metadata == metadata
+
+    def test_with_timestamp_and_duration(self):
+        """Test ToolResult with timestamp and duration."""
+        r = ToolResult(
+            success=True,
+            exit_code=0,
+            timestamp="2026-06-24T10:30:00Z",
+            duration_seconds=1.234
+        )
+        assert r.timestamp == "2026-06-24T10:30:00Z"
+        assert r.duration_seconds == 1.234
+
+    def test_all_fields(self):
+        """Test ToolResult with all fields populated."""
+        r = ToolResult(
+            success=True,
+            exit_code=0,
+            stdout="pod running",
+            stderr="",
+            data={"status": "Running"},
+            error_message="",
+            timestamp="2026-06-24T10:30:00Z",
+            metadata={"namespace": "default"},
+            duration_seconds=0.5
+        )
+        assert r.success is True
+        assert r.exit_code == 0
+        assert r.stdout == "pod running"
+        assert r.stderr == ""
+        assert r.data == {"status": "Running"}
+        assert r.error_message == ""
+        assert r.timestamp == "2026-06-24T10:30:00Z"
+        assert r.metadata == {"namespace": "default"}
+        assert r.duration_seconds == 0.5
+
+    def test_error_result(self):
+        """Test creating an error result."""
+        r = ToolResult(
+            success=False,
+            exit_code=-1,
+            stderr="connection timeout",
+            error_message="Failed to connect to host"
+        )
+        assert r.success is False
+        assert r.exit_code == -1
+        assert r.stderr == "connection timeout"
+        assert r.error_message == "Failed to connect to host"

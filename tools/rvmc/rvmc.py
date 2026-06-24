@@ -41,8 +41,8 @@ import time
 
 import redfish
 from redfish.rest.v1 import InvalidCredentialsError
-
-from utils.tool_result import ToolResult, ResultStatus
+from common.tool_result import ToolResult
+from common.tool_request import ToolRequest
 from tools.base import BaseTool
 from tools.rvmc.bmc_target import BmcTarget
 from tools.rvmc.rvmc_errors import (
@@ -140,12 +140,6 @@ class VmcObject(BaseTool):
         with VmcObject(target) as vmc:
             vmc.execute()
     """
-
-    name: str = "rvmc"
-    description: str = (
-        "Injects a bootable ISO into a BMC virtual CD/DVD drive via Redfish "
-        "and power-cycles the host to trigger a network-based OS installation."
-    )
 
     def __init__(self, target: BmcTarget):
         self._debug = target.debug
@@ -664,7 +658,7 @@ class VmcObject(BaseTool):
     # Main pipeline
     # ------------------------------------------------------------------
 
-    def execute(self):
+    def execute(self, request: ToolRequest) -> ToolResult:
         """Run the full ISO injection and boot sequence."""
         self._redfish_client_connect()
         self._redfish_root_query()
