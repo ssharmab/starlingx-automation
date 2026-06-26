@@ -76,6 +76,7 @@ class BaseAgent(ABC):
 
         return tool.execute(request)
 
+
     def _record_execution(
         self,
         observation: ToolResult,
@@ -101,9 +102,13 @@ class BaseAgent(ABC):
                 observation
             )
 
+            print(f"reason decision: {decision}")
+
             result = self.act(
                 decision
             )
+
+            print(f" result of act {result}")
 
             self._record_execution(
                 observation,
@@ -111,11 +116,15 @@ class BaseAgent(ABC):
                 result
             )
 
+            print(f"execution record is {self._state.execution_history}")
+
             status = self.evaluate_goal(
                 result
             )
 
             self._state.goal_status = status
+
+            print(f" State after evaluate_goal is {self._state}")
 
             if status in (
                 GoalStatus.COMPLETED,

@@ -6,7 +6,7 @@ In-memory registry of all known tools.
 """
 
 from tools.base import BaseTool
-from agent.structs.tool_definition import ToolDefinition
+from common.tool_definition import ToolDefinition
 
 class ToolRegistry:
     """

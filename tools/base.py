@@ -5,7 +5,7 @@ from abc import ABC, abstractmethod
 from common.tool_request import ToolRequest
 from common.tool_result import ToolResult
 
-from agent.structs.tool_definition import ToolDefinition
+from common.tool_definition import ToolDefinition
 
 
 class BaseTool(ABC):

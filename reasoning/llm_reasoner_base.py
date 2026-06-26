@@ -16,7 +16,7 @@ from agent.structs.execution_record import ExecutionRecord
 
 from common.tool_result import ToolResult
 
-from tools.tool_definition import ToolDefinition
+from common.tool_definition import ToolDefinition
 
 
 class BaseLLMReasoner(ABC):
