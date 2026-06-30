@@ -47,7 +47,7 @@ from enum import Enum
 
 import paramiko
 
-from utils.tool_result import ToolResult, ResultStatus
+from common.tool_result import ToolResult
 
 logger = logging.getLogger(__name__)
 
@@ -214,16 +214,49 @@ class SSHConnection:
             return transport is not None and transport.is_active()
 
     def connect(self) -> None:
-        """Open the SSH connection. Idempotent if already connected."""
+        """
+        Open the SSH connection. Idempotent if already connected.
+
+        Raises:
+            ConnectionRefusedError: Host refused the TCP connection.
+            ConnectionAbortedError: Host key policy violation (STRICT mode).
+            paramiko.AuthenticationException: Invalid credentials.
+            TimeoutError: TCP or SSH handshake timed out.
+            OSError: Network unreachable or other socket-level failure.
+        """
         if self.is_connected:
             return
 
         logger.info("Connecting to %s (IPv%d) as '%s'.", self.host, self.ip_version, self.login)
 
-        sock = socket.socket(self._get_socket_family(), socket.SOCK_STREAM)
-        sock.settimeout(self.connect_timeout)
-        sock.connect((self.host, self.port))
+        # --- Step 1: TCP socket connection ---
+        sock = None
+        try:
+            sock = socket.socket(self._get_socket_family(), socket.SOCK_STREAM)
+            sock.settimeout(self.connect_timeout)
+            sock.connect((self.host, self.port))
+        except socket.timeout:
+            if sock:
+                sock.close()
+            raise TimeoutError(
+                f"TCP connection to {self.host}:{self.port} timed out "
+                f"after {self.connect_timeout}s."
+            )
+        except ConnectionRefusedError:
+            if sock:
+                sock.close()
+            raise ConnectionRefusedError(
+                f"Connection refused by {self.host}:{self.port}. "
+                f"Verify SSH is running on the target."
+            )
+        except OSError as exc:
+            if sock:
+                sock.close()
+            raise OSError(
+                f"Cannot reach {self.host}:{self.port} — {exc}"
+            ) from exc
 
+        # --- Step 2: Host key verification ---
         known_hosts = self._known_hosts_path()
         host_keys = paramiko.HostKeys()
         if os.path.isfile(known_hosts):
@@ -231,26 +264,72 @@ class SSHConnection:
 
         if host_keys.lookup(self.host) is None:
             if self.host_key_policy == HostKeyPolicy.STRICT:
-                raise ConnectionAbortedError(f"{self.host} not in known_hosts.")
-            remote_key = self._fetch_remote_host_key(sock)
-            self._persist_host_key(remote_key)
-            sock = socket.socket(self._get_socket_family(), socket.SOCK_STREAM)
-            sock.settimeout(self.connect_timeout)
-            sock.connect((self.host, self.port))
+                sock.close()
+                raise ConnectionAbortedError(
+                    f"{self.host} not in known_hosts and policy is STRICT. "
+                    f"Add the host key manually or use TRUST_ON_FIRST_USE."
+                )
+            try:
+                remote_key = self._fetch_remote_host_key(sock)
+                self._persist_host_key(remote_key)
+            except Exception as exc:
+                sock.close()
+                raise OSError(
+                    f"Failed to fetch host key from {self.host}: {exc}"
+                ) from exc
 
-        with self._lock:
-            self._client = paramiko.SSHClient()
-            self._client.set_missing_host_key_policy(paramiko.RejectPolicy())
-            if os.path.isfile(known_hosts):
-                self._client.load_host_keys(known_hosts)
-            self._client.connect(
-                hostname=self.host,
-                port=self.port,
-                username=self.login,
-                password=self.password,
-                sock=sock,
-                timeout=self.connect_timeout,
+            # Re-open socket after host key fetch consumed the original
+            try:
+                sock = socket.socket(self._get_socket_family(), socket.SOCK_STREAM)
+                sock.settimeout(self.connect_timeout)
+                sock.connect((self.host, self.port))
+            except (socket.timeout, OSError) as exc:
+                raise OSError(
+                    f"Reconnect to {self.host}:{self.port} failed after "
+                    f"host key exchange: {exc}"
+                ) from exc
+
+        # --- Step 3: SSH authentication ---
+        try:
+            with self._lock:
+                self._client = paramiko.SSHClient()
+                self._client.set_missing_host_key_policy(paramiko.RejectPolicy())
+                if os.path.isfile(known_hosts):
+                    self._client.load_host_keys(known_hosts)
+                self._client.connect(
+                    hostname=self.host,
+                    port=self.port,
+                    username=self.login,
+                    password=self.password,
+                    sock=sock,
+                    timeout=self.connect_timeout,
+                )
+        except paramiko.AuthenticationException as exc:
+            with self._lock:
+                self._client = None
+            raise paramiko.AuthenticationException(
+                f"Authentication failed for {self.login}@{self.host}: {exc}"
             )
+        except paramiko.SSHException as exc:
+            with self._lock:
+                self._client = None
+            raise OSError(
+                f"SSH negotiation failed with {self.host}: {exc}"
+            ) from exc
+        except socket.timeout:
+            with self._lock:
+                self._client = None
+            raise TimeoutError(
+                f"SSH handshake with {self.host} timed out "
+                f"after {self.connect_timeout}s."
+            )
+        except Exception as exc:
+            with self._lock:
+                self._client = None
+            raise OSError(
+                f"Unexpected error connecting to {self.host}: {exc}"
+            ) from exc
+
         logger.info("SSH connection established to '%s'.", self.host)
 
     def execute(

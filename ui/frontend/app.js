@@ -11,6 +11,7 @@ let activeConversationId = null;
 let debugMode = false;
 let debugPollInterval = null;
 let currentPendingDecisionId = null;
+let debugHistoryCount = 0; // tracks how many execution records we've already rendered
 
 // ---------------------------------------------------------------------------
 // DOM elements
@@ -104,6 +105,55 @@ async function pollForPendingDecisions() {
     } catch (e) {
         // Silently ignore polling errors
     }
+
+    // Also poll for new execution records
+    try {
+        const histResp = await fetch("/api/debug/history?since=" + debugHistoryCount);
+        if (!histResp.ok) return;
+
+        const histData = await histResp.json();
+        if (histData.records && histData.records.length > 0) {
+            var conversation = getActiveConversation();
+            if (conversation) {
+                histData.records.forEach(function (rec) {
+                    conversation.messages.push({
+                        role: "assistant",
+                        content: formatExecutionRecord(rec),
+                        timestamp: new Date().toISOString(),
+                    });
+                    debugHistoryCount++;
+                });
+                renderMessages();
+            }
+        }
+    } catch (e) {
+        // Silently ignore history polling errors
+    }
+}
+
+function formatExecutionRecord(rec) {
+    var lines = [];
+    lines.push("━━━ Iteration " + rec.iteration + " ━━━");
+    lines.push("");
+    lines.push("📡 Observation:");
+    lines.push("   success: " + rec.observation.success);
+    if (rec.observation.stdout) lines.push("   stdout: " + rec.observation.stdout);
+    if (rec.observation.stderr) lines.push("   stderr: " + rec.observation.stderr);
+    if (rec.observation.data) lines.push("   data: " + JSON.stringify(rec.observation.data, null, 2).split("\n").join("\n   "));
+    lines.push("");
+    lines.push("🧠 Decision:");
+    lines.push("   tool: " + rec.decision.tool);
+    lines.push("   reason: " + rec.decision.reason);
+    if (rec.decision.parameters && Object.keys(rec.decision.parameters).length > 0) {
+        lines.push("   params: " + JSON.stringify(rec.decision.parameters));
+    }
+    lines.push("");
+    lines.push("⚡ Result:");
+    lines.push("   success: " + rec.result.success);
+    if (rec.result.stdout) lines.push("   stdout: " + rec.result.stdout);
+    if (rec.result.stderr) lines.push("   stderr: " + rec.result.stderr);
+    if (rec.result.data) lines.push("   data: " + JSON.stringify(rec.result.data, null, 2).split("\n").join("\n   "));
+    return lines.join("\n");
 }
 
 function showDebugPanel(decision) {
@@ -279,8 +329,9 @@ async function sendMessage(content) {
 
     renderMessages();
 
-    // If debug mode is on, start polling immediately
+    // If debug mode is on, start polling immediately and reset history counter
     if (debugMode) {
+        debugHistoryCount = 0;
         startDebugPolling();
     }
 

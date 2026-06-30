@@ -34,7 +34,7 @@ class BmcInventoryTool(BaseTool):
         init for this class
         """
         self._name = "bmc_inventory_discovery_tool"
-        self._description = "Check if the inventory file exists."
+        self._description = "Check if the BMC inventory file exists."
         self._filename = "C:/Users/ssharma3/Documents/WorkSpace/learning/agentic/inventory/rvmc.yaml"
 
     @property

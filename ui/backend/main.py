@@ -15,6 +15,7 @@ Then open http://localhost:8000 in your browser.
 
 import sys
 import asyncio
+import threading
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -37,6 +38,7 @@ from client.ollama_client import OllamaClient
 from client.debug_client import DebugClient
 from tools.deployment.check_bmc_inventory import BmcInventoryTool
 from tools.deployment.check_bmc_connectivity import BmcInventoryConnectivityCheckTool
+from tools.deployment.check_cluster_exists import ClusterExistenceCheckTool
 
 app = FastAPI(title="Deployment")
 
@@ -53,12 +55,17 @@ OLLAMA_HOST = "http://localhost:11434"
 # Singleton debug client so pending decisions persist across requests
 _debug_client = DebugClient()
 
+# Shared execution history for debug mode — UI polls this for live updates
+_debug_execution_history: list[dict] = []
+_debug_history_lock = threading.Lock()
+
 
 def _build_registry() -> ToolRegistry:
     """Create a ToolRegistry with all deployment tools registered."""
     registry = ToolRegistry()
     registry.register(BmcInventoryTool())
     registry.register(BmcInventoryConnectivityCheckTool())
+    registry.register(ClusterExistenceCheckTool())
     return registry
 
 
@@ -144,6 +151,41 @@ async def chat(msg: ChatMessage):
     # Run the agent loop in a thread so the event loop stays free
     # for debug polling requests
     try:
+        # Clear debug history for this run
+        with _debug_history_lock:
+            _debug_execution_history.clear()
+
+        # Wrap _record_execution to push records to the shared list
+        original_record = agent._record_execution
+
+        def _hooked_record(observation, decision, result):
+            original_record(observation, decision, result)
+            record_dict = {
+                "iteration": len(agent._state.execution_history),
+                "observation": {
+                    "success": observation.success,
+                    "data": observation.data,
+                    "stdout": observation.stdout,
+                    "stderr": observation.stderr,
+                },
+                "decision": {
+                    "tool": decision.tool,
+                    "reason": decision.reason,
+                    "parameters": decision.parameters,
+                },
+                "result": {
+                    "success": result.success,
+                    "exit_code": result.exit_code,
+                    "stdout": result.stdout,
+                    "stderr": result.stderr,
+                    "data": result.data,
+                },
+            }
+            with _debug_history_lock:
+                _debug_execution_history.append(record_dict)
+
+        agent._record_execution = _hooked_record
+
         loop = asyncio.get_event_loop()
         final_status = await loop.run_in_executor(None, agent.run)
         reply = _format_agent_reply(final_status, state)
@@ -181,6 +223,16 @@ async def submit_debug_decision(req: DebugSubmitRequest):
         return {"status": "error", "message": "Decision not found or already resolved"}
 
     return {"status": "ok", "message": "Decision submitted"}
+
+
+@app.get("/api/debug/history")
+async def get_debug_history(since: int = 0):
+    """
+    Return execution records added since index 'since'.
+    The UI passes the count it already has, and gets only new records.
+    """
+    with _debug_history_lock:
+        return {"records": _debug_execution_history[since:]}
 
 
 def _format_agent_reply(status: GoalStatus, state: AgentState) -> str:

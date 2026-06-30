@@ -71,8 +71,8 @@ class ClusterDeploymentAgent(BaseAgent):
         last_record = self._state.execution_history[-1]
 
         return ToolResult(
-            success=True,
-            exit_code=0,
+            success=last_record.result.success,
+            exit_code=last_record.result.exit_code,
             data={
                 "last_tool": last_record.decision.tool,
                 "last_tool_success": last_record.result.success,
