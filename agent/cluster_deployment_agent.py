@@ -39,30 +39,49 @@ class ClusterDeploymentAgent(BaseAgent):
 
     def observe(self) -> ToolResult:
         """
-        Gather the latest cluster state.
+        Gather the current deployment state.
+
+        Strategy:
+        - On first iteration (no execution history), run the initial tool
+          to get baseline information (e.g. inventory check).
+        - On subsequent iterations, synthesize state from the last execution
+          record so the reasoner has fresh context without re-running
+          expensive tools unnecessarily.
         """
 
-        if not self._registry.has(
-            self._goal.initial_tool
-        ):
-            return ToolResult(
-                success=False,
-                exit_code=1,
-                stderr=(
-                    "get_cluster_state tool "
-                    "is not registered"
+        # First observation: run the initial tool to get baseline data
+        if not self._state.execution_history:
+            if not self._registry.has(self._goal.initial_tool):
+                return ToolResult(
+                    success=False,
+                    exit_code=1,
+                    stderr=f"Initial tool '{self._goal.initial_tool}' is not registered",
                 )
+
+            tool = self._registry.get(self._goal.initial_tool)
+            request = ToolRequest(
+                correlation_id=self._correlation_id,
+                parameters=self._goal.initial_tool_parameters,
             )
+            return tool.execute(request)
 
-        tool = self._registry.get(
-            self._goal.initial_tool
+        # Subsequent observations: summarize what we already know
+        # from the last action's result, so the reasoner sees the
+        # current state without re-invoking tools.
+        last_record = self._state.execution_history[-1]
+
+        return ToolResult(
+            success=True,
+            exit_code=0,
+            data={
+                "last_tool": last_record.decision.tool,
+                "last_tool_success": last_record.result.success,
+                "last_tool_stdout": last_record.result.stdout,
+                "last_tool_stderr": last_record.result.stderr,
+                "last_tool_data": last_record.result.data,
+                "total_actions_taken": len(self._state.execution_history),
+            },
         )
-
-        request = ToolRequest(
-            correlation_id=self._correlation_id
-        )
-
-        return tool.execute(request)
 
     def reason(
         self,
@@ -84,6 +103,20 @@ class ClusterDeploymentAgent(BaseAgent):
     ) -> GoalStatus:
 
         #
+        # If the reasoner (or human) explicitly signaled "done",
+        # trust that decision and mark the goal completed.
+        #
+        if result.success and result.stdout == "Goal marked as done by reasoner.":
+            return GoalStatus.COMPLETED
+
+        #
+        # If the reasoner (or human) explicitly signaled "fail",
+        # mark the goal as failed.
+        #
+        if not result.success and result.stderr and result.stderr.startswith("Goal marked as failed"):
+            return GoalStatus.FAILED
+
+        #
         # If the last action failed,
         # allow the agent to reason again.
         #
@@ -100,6 +133,10 @@ class ClusterDeploymentAgent(BaseAgent):
         # Re-observe cluster state.
         #
         observation = self.observe()
+
+        print("  ")
+        print(f"-> [evaluate_goal] observation = {observation}")
+        print("  ")
 
         if not observation.success:
             return GoalStatus.BLOCKED

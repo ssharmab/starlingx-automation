@@ -9,8 +9,8 @@ from client.base_llm_client import BaseLLMClient
 from agent.structs.goal import Goal
 from agent.structs.decision import Decision
 from agent.structs.execution_record import ExecutionRecord
-from agent.structs.tool_definition import ToolDefinition
 
+from common.tool_definition import ToolDefinition
 from common.tool_result import ToolResult
 
 

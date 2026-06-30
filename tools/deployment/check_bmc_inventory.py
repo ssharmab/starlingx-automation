@@ -50,7 +50,7 @@ class BmcInventoryTool(BaseTool):
                 "and returns inventory information."
             ),
 
-            input_schema={},
+            input_schema={"path":"str"},
 
             output_schema={
                 "inventory_found": "bool",
@@ -95,7 +95,7 @@ class BmcInventoryTool(BaseTool):
 
         with open(request.parameters.get("path")) as f:
             data = yaml.safe_load(f)
-
+            print(f"[check_bmc_inventory] data={data}")
             expected_keys = {"bmc_address",
                              "bmc_username",
                              "bmc_password",
@@ -107,6 +107,7 @@ class BmcInventoryTool(BaseTool):
                               if val is None or (isinstance(val, str) and val.strip() == "")]
 
             if missing_keys or missing_values:
+                print("missing keys or values")
                 stdout_str = (f"Inventory missing these keys "
                               f"[{missing_keys}] or their values [{missing_values}]")
                 return ToolResult(success=False,

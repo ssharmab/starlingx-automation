@@ -29,6 +29,8 @@ class Goal:
 
     initial_tool: str = field(default="")
 
+    initial_tool_parameters: dict(Any, Any) = field(default=None)
+    
     success_criteria: str = field(default="")
 
     def __str__(self) -> str:

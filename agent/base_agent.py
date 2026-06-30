@@ -53,6 +53,21 @@ class BaseAgent(ABC):
         decision: Decision
     ) -> ToolResult:
 
+        # Handle pseudo-tools that signal loop termination
+        if decision.tool == "done":
+            return ToolResult(
+                success=True,
+                exit_code=0,
+                stdout="Goal marked as done by reasoner.",
+            )
+
+        if decision.tool == "fail":
+            return ToolResult(
+                success=False,
+                exit_code=1,
+                stderr=f"Goal marked as failed: {decision.reason}",
+            )
+
         if not self._registry.has(
             decision.tool
         ):
@@ -102,35 +117,42 @@ class BaseAgent(ABC):
                 observation
             )
 
-            print(f"reason decision: {decision}")
+            print(f"[BaseAgent run] reason decision: {decision}")
+            print(" ")
 
             result = self.act(
                 decision
             )
-
+            print(" ")
             print(f" result of act {result}")
-
+            print(" ")
+            
             self._record_execution(
                 observation,
                 decision,
                 result
             )
-
+            print("  ")
             print(f"execution record is {self._state.execution_history}")
+            print(" ")
 
+            print(f"[BaseAgent run] evaluate_goal gets {result}")
+            
             status = self.evaluate_goal(
                 result
             )
 
             self._state.goal_status = status
-
-            print(f" State after evaluate_goal is {self._state}")
-
+            print(" ")
+            print(f"-> State after evaluate_goal is {self._state}")
+            print(" ")
+            
             if status in (
                 GoalStatus.COMPLETED,
                 GoalStatus.FAILED,
                 GoalStatus.BLOCKED
             ):
+                print(f"--> Returning State after evaluate_goal is {self._state}")
                 return status
 
         self._state.goal_status = (
